@@ -509,90 +509,93 @@ const words = [
   "xylophone",
   "yarn",
   "zebra",
-];
+];  
+// Function to broadcast player count and player list to all connected players
+const updatePlayerData = () => {
+  const message = JSON.stringify({
+      type: 'playerData',
+      count: players.length,
+      players: players.map(player => ({ username: player.username, isAdmin: player.isAdmin }))
+  });
+  players.forEach(player => player.ws.send(message));
+};
 
-// Function to broadcast player count to all connected players
-const updatePlayerCount = () => {
-    const message = JSON.stringify({ type: 'playerCount', count: players.length });
-    players.forEach(player => player.ws.send(message));
-  };
-  
-  wss.on("connection", (ws) => {
-    ws.on("message", (message) => {
+wss.on("connection", (ws) => {
+  ws.on("message", (message) => {
       const data = JSON.parse(message);
-  
+
       if (data.type === "join") {
-        const player = { ws, isAdmin: false, username: data.username || 'Anonymous' };
-        players.push(player);
-  
-        // Assign admin to the first player
-        if (players.length === 1) {
-          player.isAdmin = true;
-          admin = player;
-          ws.send(JSON.stringify({ type: "joined", isAdmin: true }));
-        } else {
-          ws.send(JSON.stringify({ type: "joined", isAdmin: false }));
-        }
-  
-        // Update all players with the current player count
-        updatePlayerCount();
-      }
-  
-      if (data.type === "start" && ws === admin.ws) {
-        const imposterCount = parseInt(data.imposterCount, 10);
-        const chosenWord = words[Math.floor(Math.random() * words.length)];
-        const playersCount = players.length;
-  
-        // Validate imposter count
-        if (imposterCount >= playersCount) {
-          ws.send(JSON.stringify({ type: "error", message: "Imposter count is too high." }));
-          return;
-        }
-  
-        const imposters = new Set();
-  
-        while (imposters.size < imposterCount) {
-          const imposterIndex = Math.floor(Math.random() * players.length);
-          imposters.add(players[imposterIndex]);
-        }
-  
-        // Create a list of imposter names
-        const imposterNames = Array.from(imposters).map(player => player.username);
-  
-        // Send word and imposter information to players
-        players.forEach(player => {
-          if (imposters.has(player)) {
-            player.ws.send(
-              JSON.stringify({
-                type: "gameStart",
-                imposterNames: imposterNames.filter(name => name !== player.username), // Exclude the current imposter's name
-              })
-            );
+          const player = { ws, isAdmin: false, username: data.username || 'Anonymous' };
+          players.push(player);
+
+          // Assign admin to the first player
+          if (players.length === 1) {
+              player.isAdmin = true;
+              admin = player;
+              ws.send(JSON.stringify({ type: "joined", isAdmin: true }));
           } else {
-            player.ws.send(
-              JSON.stringify({
-                type: "gameStart",
-                word: chosenWord,
-              })
-            );
+              ws.send(JSON.stringify({ type: "joined", isAdmin: false }));
           }
-        });
+
+          // Update all players with the current player data
+          updatePlayerData();
       }
-    });
-  
-    ws.on("close", () => {
+
+      if (data.type === "start" && ws === admin.ws) {
+          const imposterCount = parseInt(data.imposterCount, 10);
+          const chosenWord = words[Math.floor(Math.random() * words.length)];
+          const playersCount = players.length;
+
+          // Validate imposter count
+          if (imposterCount >= playersCount) {
+              ws.send(JSON.stringify({ type: "error", message: "Imposter count is too high." }));
+              return;
+          }
+
+          const imposters = new Set();
+
+          while (imposters.size < imposterCount) {
+              const imposterIndex = Math.floor(Math.random() * players.length);
+              imposters.add(players[imposterIndex]);
+          }
+
+          // Create a list of imposter names
+          const imposterNames = Array.from(imposters).map(player => player.username);
+
+          // Send word and imposter information to players
+          players.forEach(player => {
+              if (imposters.has(player)) {
+                  player.ws.send(
+                      JSON.stringify({
+                          type: "gameStart",
+                          imposterNames: imposterNames.filter(name => name !== player.username), // Exclude the current imposter's name
+                      })
+                  );
+              } else {
+                  player.ws.send(
+                      JSON.stringify({
+                          type: "gameStart",
+                          word: chosenWord,
+                      })
+                  );
+              }
+          });
+      }
+  });
+
+  ws.on("close", () => {
       players = players.filter((player) => player.ws !== ws);
-  
+
       // If the admin leaves, assign a new admin if players are still present
       if (ws === admin?.ws && players.length > 0) {
-        admin = players[0];  // The next player becomes the admin
-        admin.isAdmin = true;
-        admin.ws.send(JSON.stringify({ type: "joined", isAdmin: true }));
+          admin = players[0];  // The next player becomes the admin
+          admin.isAdmin = true;
+          admin.ws.send(JSON.stringify({ type: "joined", isAdmin: true }));
       }
-  
-      // Update player count for all players
-      updatePlayerCount();
-    });
+
+      // Update player data for all players
+      updatePlayerData();
   });
-  
-  console.log("Server Started on ws://localhost:8080");
+});
+
+console.log("Server Started on ws://localhost:8080");
