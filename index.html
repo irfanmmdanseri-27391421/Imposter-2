@@ -29,6 +29,20 @@
             font-size: 24px;
             font-weight: bold;
         }
+
+        #player-list {
+            margin-top: 20px;
+        }
+
+        #player-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        #player-list li {
+            font-size: 18px;
+            margin: 5px 0;
+        }
     </style>
 </head>
 <body>
@@ -49,10 +63,14 @@
         <div id="game-screen" style="display: none;">
             <p id="word"></p>
         </div>
+        <div id="player-list">
+            <h3>Players:</h3>
+            <ul id="players"></ul>
+        </div>
     </div>
 
     <script>
-        const socket = new WebSocket('ws://localhost:8080');
+        const socket = new WebSocket('https://imposter-234.onrender.com');
         let isAdmin = false;
 
         document.getElementById('join-btn').addEventListener('click', () => {
@@ -84,6 +102,16 @@
                 } else {
                     document.getElementById('word').innerText = `${data.word}`;
                 }
+            }
+
+            if (data.type === 'playerData') {
+                const playerListElement = document.getElementById('players');
+                playerListElement.innerHTML = '';  // Clear previous player list
+                data.players.forEach(player => {
+                    const li = document.createElement('li');
+                    li.innerText = `${player.username} ${player.isAdmin ? '(Admin)' : ''}`;
+                    playerListElement.appendChild(li);
+                });
             }
         };
 
